@@ -86,7 +86,7 @@ TEMPLATES = [
 # -----------------------
 def _simple_parse_database_url(url: str):
     """
-    Minimal parse fallback for a postgres URL if dj-database-url isn't installed.
+    Minimal parser for a postgres URL.
     Accepts postgres:// or postgresql://
     """
     parsed = urlparse(url)
@@ -113,14 +113,19 @@ if DATABASE_URL:
         import dj_database_url
 
         conn_max_age = int(os.getenv("POSTGRES_CONN_MAX_AGE", 600))
-        db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=conn_max_age)
-        # enforce sslmode from env if provided
+        # enforce SSL and parse the URL robustly
+        db_config = dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=conn_max_age,
+            ssl_require=True,  # ensure dj-database-url requests SSL
+        )
+        # allow explicit override via POSTGRES_SSLMODE env var
         sslmode = os.getenv("POSTGRES_SSLMODE")
         if sslmode:
             db_config.setdefault("OPTIONS", {})["sslmode"] = sslmode
         DATABASES = {"default": db_config}
     except Exception:
-        # fallback to simple parser
+        # fallback parser (less robust, but will work for standard URLs)
         DATABASES = {"default": _simple_parse_database_url(DATABASE_URL)}
 else:
     # Require explicit POSTGRES_* env vars if DATABASE_URL isn't present

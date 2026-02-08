@@ -1,4 +1,3 @@
-# settings.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -90,7 +89,6 @@ TEMPLATES = [
 # -----------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    # fall back to explicit vars only if DATABASE_URL missing
     POSTGRES_DB = os.getenv("POSTGRES_DB")
     if not POSTGRES_DB:
         raise ImproperlyConfigured(
@@ -154,35 +152,28 @@ REST_FRAMEWORK = {
 # -----------------------------
 # CORS / CSRF
 # -----------------------------
-# CSRF trusted origins (from .env comma-separated)
 _csrf_list = _csv_env_list("CSRF_TRUSTED_ORIGINS")
 CSRF_TRUSTED_ORIGINS = _csrf_list
 
-# CORS settings
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False") in ("True", "true", "1")
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "False") in ("True", "true", "1")
 
-# If explicit allowed origins provided, parse them; otherwise leave empty (or use allow all)
 _cors_allowed = _csv_env_list("CORS_ALLOWED_ORIGINS")
 if CORS_ALLOW_ALL_ORIGINS:
-    # When allow-all is enabled, explicit list is not needed
     CORS_ALLOWED_ORIGINS = []
 else:
     CORS_ALLOWED_ORIGINS = _cors_allowed
 
 # -----------------------------
-# Email (from env)
+# Email (SMTP via Brevo)
 # -----------------------------
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp-relay.brevo.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587) or 587)
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") in ("True", "true", "1")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
-
-# Resend API Key (for the SDK wrapper)
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", None)
 
 # -----------------------------
 # Production security flags (toggle with env)
@@ -198,3 +189,10 @@ SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False") in ("True", "tru
 # Misc security
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
+
+# -----------------------------
+# Email via Resend API
+# -----------------------------
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_EMAIL_FROM = os.getenv("RESEND_EMAIL_FROM")
+DEFAULT_FROM_EMAIL = RESEND_EMAIL_FROM

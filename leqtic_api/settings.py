@@ -1,4 +1,3 @@
-# leqtic_api/settings.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +11,11 @@ env_path = BASE_DIR / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
+# Helper to parse comma-separated env lists
+def _csv_env_list(name: str):
+    raw = os.getenv(name, "")
+    return [v.strip() for v in raw.split(",") if v.strip()]
+
 # Basic
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -21,7 +25,6 @@ DEBUG = os.getenv("DEBUG", "False") in ("True", "true", "1")
 
 # Hosts
 _allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
-# If env var empty and DEBUG=True, allow localhost for quick dev
 if _allowed_hosts:
     ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(",") if h.strip()]
 else:
@@ -50,10 +53,11 @@ INSTALLED_APPS = [
     "valentines",
 ]
 
-# Middleware (WhiteNoise before SecurityMiddleware to serve static files fast)
+# Middleware
 MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # corsheaders should be high in the middleware stack
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -105,7 +109,6 @@ if not DATABASE_URL:
     }
 else:
     conn_max_age = int(os.getenv("POSTGRES_CONN_MAX_AGE", 600))
-    # require SSL via dj-database-url and also allow explicit env override
     db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=conn_max_age, ssl_require=True)
     sslmode = os.getenv("POSTGRES_SSLMODE")
     if sslmode:
@@ -132,7 +135,6 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# WhiteNoise compressed manifest storage for production static files
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -151,11 +153,21 @@ REST_FRAMEWORK = {
 # -----------------------------
 # CORS / CSRF
 # -----------------------------
-# Trusted origins (comma separated), e.g. https://your-frontend.com,https://your-backend.onrender.com
-_csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "")
-CSRF_TRUSTED_ORIGINS = [u.strip() for u in _csrf_origins.split(",") if u.strip()]
+# CSRF trusted origins (from .env comma-separated)
+_csrf_list = _csv_env_list("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = _csrf_list
+
+# CORS settings
 CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "False") in ("True", "true", "1")
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "False") in ("True", "true", "1")
+
+# If explicit allowed origins provided, parse them; otherwise leave empty (or use allow all)
+_cors_allowed = _csv_env_list("CORS_ALLOWED_ORIGINS")
+if CORS_ALLOW_ALL_ORIGINS:
+    # When allow-all is enabled, explicit list is not needed
+    CORS_ALLOWED_ORIGINS = []
+else:
+    CORS_ALLOWED_ORIGINS = _cors_allowed
 
 # -----------------------------
 # Email (from env)
@@ -171,18 +183,14 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 # -----------------------------
 # Production security flags (toggle with env)
 # -----------------------------
-# Force HTTPS in production (set to True in Render)
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") in ("True", "true", "1")
-
-# Cookies
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True") in ("True", "true", "1")
 CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True") in ("True", "true", "1")
 
-# HSTS
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", 3600))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True") in ("True", "true", "1")
 SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False") in ("True", "true", "1")
 
-# Misc
+# Misc security
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"

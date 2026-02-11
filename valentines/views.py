@@ -82,3 +82,10 @@ class ValentineDetailAPIView(APIView):
         valentine = get_object_or_404(Valentine, id=id)
         serializer = ValentineSerializer(valentine)
         return Response(serializer.data)
+
+from django.http import HttpResponse
+
+def ping(request):
+    return HttpResponse("ok", content_type="text/plain")
+
+
